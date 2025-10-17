@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title>Regisztráció</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <h1>Regisztráció</h1>
+  <form id="registerForm">
+  <input type="email" id="email" placeholder="Email" required>
+  <input type="password" id="password" placeholder="Jelszó" required>
+  <label>
+    <input type="checkbox" id="rules" required>
+    Elfogadom a szabályzatot
+  </label>
+  <button type="submit">Regisztráció</button>
+</form>
+
+<script>
+document.getElementById("registerForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const rules = document.getElementById("rules").checked;
+
+  const res = await fetch("/api/register", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ email, password, rules })
+  });
+
+  const data = await res.json();
+  if (data.ok) {
+    alert("Sikeres regisztráció!");
+    window.location.href = "/login";
+  } else {
+    alert("Hiba: " + data.error);
+  }
+});
+</script>
+
+
+
+  <p>Már van fiókod? <a href="/login">Bejelentkezés</a></p>
+
+  <script>
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: fd.get("email"),
+          password: fd.get("password")
+        })
+      });
+      if (res.ok) {
+        alert("Sikeres regisztráció! Most már bejelentkezhetsz.");
+        window.location.href = "/login";
+      } else {
+        const data = await res.json();
+        alert("Hiba: " + data.error);
+      }
+    });
+  </script>
+</body>
+</html>

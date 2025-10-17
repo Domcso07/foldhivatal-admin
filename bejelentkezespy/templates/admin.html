@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin felület</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <h1>Admin felület</h1>
+
+  <table border="1">
+    <tr>
+      <th>Email</th>
+      <th>Házak</th>
+      <th>Fizetési dátumok</th>
+      <th>Fizetési előzmények</th>
+      <th>Műveletek</th>
+    </tr>
+    {% for user in users %}
+    <tr>
+      <td>{{ user.email }}</td>
+      <td>
+        {% if user.houses %}
+          {{ user.houses|join(", ") }}
+        {% else %}
+          nincs ház
+        {% endif %}
+      </td>
+      <td>
+  {% if user.paid_history %}
+    {% for house, history in user.paid_history.items() %}
+      <b>Ház {{ house }}</b>
+      <ul>
+        {% for entry in history %}
+          <li>
+            {{ entry.date }}
+            <input type="checkbox"
+                   {% if entry.paid %}checked{% endif %}
+                   onchange="togglePaid('{{ user.email }}', '{{ house }}', '{{ entry.date }}', this.checked)">
+          </li>
+        {% endfor %}
+      </ul>
+      <button onclick="addPayment('{{ user.email }}', '{{ house }}')">Új dátum hozzáadása</button>
+    {% endfor %}
+  {% else %}
+    nincs előzmény
+  {% endif %}
+</td>
+
+      <td>
+        <button onclick="addHouse('{{ user.email }}')">Ház hozzáadása</button>
+        <button onclick="removeHouse('{{ user.email }}')">Ház törlése</button>
+        <button onclick="setPayment('{{ user.email }}')">Fizetési dátum</button>
+        <button onclick="deleteUser('{{ user.email }}')">Fiók törlése</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <script>
+  async function togglePaid(email, house, date, paid) {
+    await fetch("/api/admin/markpaid", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email, house: parseInt(house), date: date, paid: paid })
+    });
+  }
+
+  async function addPayment(email, house) {
+  const date = prompt("Melyik dátumot adod hozzá? (pl. 2025-10-20)");
+  if (!date) return;
+  await fetch("/api/admin/markpaid", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ email, house: parseInt(house), date: date, paid: false })
+  });
+  location.reload();
+}
+
+
+  async function addHouse(email) {
+    const house = prompt("Melyik házszámot adod hozzá?");
+    if (!house) return;
+    await fetch("/api/admin/addhouse", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email, house: parseInt(house) })
+    });
+    location.reload();
+  }
+
+  async function removeHouse(email) {
+    const house = prompt("Melyik házszámot törlöd?");
+    if (!house) return;
+    await fetch("/api/admin/removehouse", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email, house: parseInt(house) })
+    });
+    location.reload();
+  }
+
+  async function setPayment(email) {
+    const house = prompt("Melyik házhoz állítod a fizetési dátumot?");
+    const due = prompt("Mikor esedékes? (pl. 2025-10-20)");
+    if (!house || !due) return;
+    await fetch("/api/admin/setpayment", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email, house: parseInt(house), due_date: due })
+    });
+    location.reload();
+  }
+
+  async function deleteUser(email) {
+    if (!confirm(email + " fiókját tényleg törölni akarod?")) return;
+    await fetch("/api/admin/deleteuser", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email })
+    });
+    location.reload();
+  }
+  </script>
+</body>
+</html>

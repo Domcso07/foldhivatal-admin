@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title>Házbérlés</title>
+</head>
+<body>
+  <h1>Az én házaim</h1>
+  <ul id="houseList"></ul>
+
+  <h2>Fizetési kötelezettségek</h2>
+<table border="1" id="paymentTable">
+  <tr>
+    <th>Házszám</th>
+    <th>Heti díj (€)</th>
+    <th>Következő fizetési nap</th>
+  </tr>
+</table>
+
+<script>
+async function loadPayments() {
+  const res = await fetch("/api/payments");
+  if (!res.ok) return;
+  const data = await res.json();
+  const table = document.getElementById("paymentTable");
+
+  // töröljük a régi sorokat, csak a fejléc maradjon
+  table.innerHTML = `
+    <tr>
+      <th>Házszám</th>
+      <th>Heti díj (€)</th>
+      <th>Következő fizetési nap</th>
+    </tr>
+  `;
+
+  data.payments.forEach(p => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${p.house}</td>
+      <td>${p.weekly_rent}</td>
+      <td>${p.next_due ? p.next_due : "-"}</td>
+    `;
+    table.appendChild(row);
+  });
+}
+
+loadPayments();
+</script>
+
+</body>
+</html>

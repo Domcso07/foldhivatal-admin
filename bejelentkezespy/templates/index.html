@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title>Földhivatal</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <h1>Üdv a Földhivatal oldalán!</h1>
+    <nav>
+      <a href="/">Főoldal</a>
+      <a href="/register">Regisztráció</a>
+      <a href="/login">Bejelentkezés</a>
+        <a href="/houses">Az én házaim</a>
+      <a href="/api/logout" id="logoutLink" style="display:none;">Kijelentkezés</a>
+    </nav>
+  </header>
+
+  <main>
+    <p id="welcomeText">Betöltés...</p>
+  </main>
+
+  <script>
+    async function checkLogin() {
+      const res = await fetch("/api/me");
+      const data = await res.json();
+      const welcome = document.getElementById("welcomeText");
+      const logoutLink = document.getElementById("logoutLink");
+
+      if (data.logged_in) {
+        welcome.textContent = `Be vagy jelentkezve: ${data.email}`;
+        logoutLink.style.display = "inline";
+        logoutLink.addEventListener("click", async (e) => {
+          e.preventDefault();
+          await fetch("/api/logout", { method: "POST" });
+          window.location.reload();
+        });
+      } else {
+        welcome.textContent = "Nem vagy bejelentkezve. Kérlek jelentkezz be!";
+      }
+    }
+
+    checkLogin();
+  </script>
+</body>
+</html>
