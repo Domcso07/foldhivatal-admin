@@ -85,21 +85,21 @@
     {% set history = (user.paid_history or {}).get(house_key, []) %}
 
     {% set status = "Rendben" %}
-    {% if period.get("suspended") %}
-      {% set status = "Felfüggesztett" %}
-    {% elif due %}
-      {% set paid_entry = None %}
-      {% for entry in history %}
-        {% if entry.date == due and entry.paid %}
-          {% set paid_entry = entry %}
-        {% endif %}
-      {% endfor %}
-      {% if not paid_entry and due < now().strftime("%Y-%m-%d") %}
-        {% set status = "Elmaradt" %}
-      {% endif %}
+{% if period.get("suspended") %}
+  {% set status = "Felfüggesztett" %}
+{% elif due %}
+  {% set paid_entry = None %}
+  {% for entry in history %}
+    {% if entry.date == due and entry.paid %}
+      {% set paid_entry = entry %}
     {% endif %}
+  {% endfor %}
+  {% if not paid_entry and (due < now().strftime("%Y-%m-%d")) %}
+    {% set status = "Elmaradt" %}
+  {% endif %}
+{% endif %}
 
-    <span class="badgeS status-{{ status|lower }}">{{ status }}</span>
+<span class="badgeS status-{{ status|lower }}">{{ status }}</span>
   </div>
   <div class="chevron">▶</div>
 </div>
@@ -206,7 +206,7 @@
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ email, house: parseInt(house), suspended })
   });
-  location.reload();
+  location.reload()
 }
 
   
