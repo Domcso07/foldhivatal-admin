@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin felület</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    body { font-family: Arial, sans-serif; margin:20px; background:#f7f7f9; }
+    .header-bar { background:#2c3e50; color:#fff; padding:10px 15px; margin-bottom:20px; }
+    h1 { margin-bottom:20px; }
+    .accordion-item { border:1px solid #ddd; margin-bottom:10px; border-radius:4px; }
+    .accordion-header { background:#f0f0f0; padding:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+    .accordion-header.active { background:#e0e0e0; }
+    .accordion-content { display:none; padding:10px; background:#fff; }
+    .house-header { background:#fafafa; padding:8px; cursor:pointer; display:flex; justify-content:space-between; }
+    .house-content { display:none; padding:8px; }
+    .actions { margin:10px 0; }
+    button { padding:6px 12px; border:none; border-radius:4px; cursor:pointer; margin-right:5px; }
+    button:hover { opacity:0.9; }
+    .btn-danger { background:#e74c3c; color:#fff; }
+    .btn-secondary { background:#95a5a6; color:#fff; }
+    .x-btn { background:#ff9084; color:#fff; border:none; border-radius:3px; cursor:pointer; margin-left:5px; }
+    .badge { background:#3498db; color:#fff; padding:2px 6px; border-radius:4px; font-size:12px; }
+    .flash { padding:10px; margin:10px 0; border-radius:4px; }
+    .flash.success { background:#d4edda; color:#155724; }
+    .flash.error { background:#f8d7da; color:#721c24; }
+    .flash.info { background:#d1ecf1; color:#0c5460; }
+  </style>
+</head>
+<body>
+  <div class="header-bar">
+    Bejelentkezve mint: <strong>{{ current_user.username }}</strong> ({{ current_user.email }})
+  </div>
+
+  <h1>Admin felület</h1>
+
+  <!-- Flash üzenetek -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="accordion" id="userAccordion">
+    {% for user in users %}
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleSection(this)">
+        <div class="accordion-title">
+          {{ user.username }} ({{ user.email }})
+          {% if user.houses %}
+            <span class="badge">Házak: {{ user.houses|length }}</span>
+          {% else %}
+            <span class="badge">Nincs ház</span>
+          {% endif %}
+        </div>
+        <div class="accordion-meta"><span class="chevron">▶</span></div>
+      </div>
+      <div class="accordion-content">
+        <div class="actions">
+          <button onclick="addHouse('{{ user.email }}')">Ház hozzáadása</button>
+          <button onclick="removeHouse('{{ user.email }}')">Ház törlése</button>
+          <button onclick="setPayment('{{ user.email }}')">Fizetési dátum</button>
+          <button class="btn-danger" onclick="deleteUser('{{ user.email }}')">Fiók törlése</button>
+        </div>
+
+        {% set houses_list = user.houses or [] %}
+        {% if houses_list %}
+          {% for h in houses_list %}
+          {% set house_key = h|string %}
+          <div class="house-group">
+            <div class="house-header" onclick="toggleHouse(this)">
+              <div>Ház {{ h }}</div>
+              <div class="chevron">▶</div>
+            </div>
+            <div class="house-content">
+              <div class="section">
+                <button onclick="setSuspended('{{ user.email }}','{{ h }}', true)">Felfüggesztés</button>
+                <button onclick="setSuspended('{{ user.email }}','{{ h }}', false)">Visszaállítás</button>
+
+                <div class="card">
+                  <h4>Fizetési dátum</h4>
+                  {% set due = (user.payments or {}).get(house_key) %}
+                  {% if due %}
+                    <ul class="inline-list"><li>Következő esedékes: {{ due }}</li></ul>
+                  {% else %}
+                    <span>nincs beállítva</span>
+                  {% endif %}
+                </div>
+                
+<div class="card">
+  <h4>Bérlés időszaka</h4>
+  {% set period = (user.rental_periods or {}).get(h|string) %}
+  {% if period %}
+    <ul class="inline-list">
+      <li>Kezdete: {{ period["start"] }}</li>
+      <li>Vége: {{ period["end"] or "határozatlan" }}</li>
+    </ul>
+  {% else %}
+    <span>nincs beállítva</span>
+  {% endif %}
+  <div class="actions">
+    <button onclick="setRentalPeriod('{{ user.email }}','{{ h }}')">Időszak beállítása</button>
+  </div>
+</div>
+
+
+
+                <div class="card">
+                  <h4>Fizetési előzmények</h4>
+                  {% set history = (user.paid_history or {}).get(house_key) %}
+                  {% if history %}
+                    <ul class="inline-list">
+                      {% for entry in history %}
+                        <li>
+                          {{ entry.date }}
+                          <input type="checkbox"
+                                 {% if entry.paid %}checked{% endif %}
+                                 onchange="togglePaid('{{ user.email }}', '{{ h }}', '{{ entry.date }}', this.checked)">
+                          <button class="x-btn" onclick="deleteHistoryEntry('{{ user.email }}','{{ h }}','{{ entry.date }}')">❌</button>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    <span>nincs előzmény</span>
+                  {% endif %}
+                  <div class="actions">
+                    <button onclick="addPayment('{{ user.email }}', '{{ h }}')">Új dátum</button>
+                    <button class="btn-secondary" onclick="clearHouseHistory('{{ user.email }}','{{ h }}')">Összes törlése</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p>Nincs hozzárendelt ház.</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Input modal -->
+  <div id="modal" style="display:none; position:fixed; top:0; left:0; 
+       width:100%; height:100%; background:rgba(0,0,0,0.5); 
+       justify-content:center; align-items:center;">
+    <div style="background:#fff; padding:20px; border-radius:6px; min-width:300px;">
+      <h3 id="modal-title">Adj meg egy értéket</h3>
+      <input type="text" id="modal-input" style="width:95%; padding:6px;">
+      <div style="margin-top:10px; text-align:right;">
+        <button onclick="closeModal()">Mégse</button>
+        <button onclick="confirmModal()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm modal -->
+  <div id="confirm-modal" style="display:none; position:fixed; top:0; left:0;
+       width:100%; height:100%; background:rgba(0,0,0,0.5);
+       justify-content:center; align-items:center;">
+    <div style="background:#fff; padding:20px; border-radius:6px; min-width:300px;">
+      <h3 id="confirm-text">Biztos vagy benne?</h3>
+      <div style="margin-top:10px; text-align:right;">
+        <button onclick="closeConfirm(false)">Mégse</button>
+        <button onclick="closeConfirm(true)">Igen</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  async function setSuspended(email, house, suspended) {
+  await fetch("/api/admin/setsuspended", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ email, house: parseInt(house), suspended })
+  });
+  location.reload();
+}
+
+  
+  // Accordion nyitás/zárás
+  function toggleSection(headerEl) {
+    headerEl.classList.toggle('active');
+    const contentEl = headerEl.nextElementSibling;
+    contentEl.style.display = contentEl.style.display === 'block' ? 'none' : 'block';
+  }
+  function toggleHouse(houseHeaderEl) {
+    houseHeaderEl.classList.toggle('active');
+    const contentEl = houseHeaderEl.nextElementSibling;
+    contentEl.style.display = contentEl.style.display === 'block' ? 'none' : 'block';
+  }
+
+function setRentalPeriod(email, house) {
+  openModal("Bérlés kezdete (pl. 2025-10-01)", (start) => {
+    if (!start) return;
+    openModal("Bérlés vége (pl. 2026-10-01 vagy üres ha határozatlan)", async (end) => {
+      await fetch("/api/admin/setrentalperiod", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ email, house: parseInt(house), start, end })
+      });
+      location.reload();
+    });
+  });
+}
+
+
+  // Input modal
+  let modalCallback = null;
+  function openModal(title, callback) {
+    document.getElementById("modal-title").innerText = title;
+    document.getElementById("modal-input").value = "";
+    document.getElementById("modal").style.display = "flex";
+    modalCallback = callback;
+  }
+  function closeModal() { document.getElementById("modal").style.display = "none"; }
+  function confirmModal() {
+    const value = document.getElementById("modal-input").value;
+    closeModal();
+    if (modalCallback) modalCallback(value);
+  }
+
+let confirmCallback = null;
+
+function openConfirm(message, callback) {
+  document.getElementById("confirm-text").innerText = message;
+  document.getElementById("confirm-modal").style.display = "flex";
+  confirmCallback = callback;
+}
+
+function closeConfirm(result) {
+  document.getElementById("confirm-modal").style.display = "none";
+  if (confirmCallback) confirmCallback(result);
+}
+
+  // Fizetési előzmények kezelése
+  async function togglePaid(email, house, date, paid) {
+    await fetch("/api/admin/markpaid", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email, house: parseInt(house), date: date, paid: paid })
+    });
+  }
+
+  function addPayment(email, house) {
+    openModal("Melyik dátumot adod hozzá? (pl. 2025-10-20)", async (date) => {
+      if (!date) return;
+      await fetch("/api/admin/markpaid", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ email, house: parseInt(house), date: date, paid: false })
+      });
+      location.reload();
+    });
+  }
+
+  function clearHouseHistory(email, house) {
+  openConfirm("Biztosan törlöd az összes előzményt a házhoz?", async (ok) => {
+    if (!ok) return;
+    await fetch("/api/admin/clearhousehistory", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email, house: parseInt(house) })
+    });
+    location.reload();
+  });
+}
+
+
+  function deleteHistoryEntry(email, house, date) {
+  openConfirm("Biztosan törlöd ezt az előzményt: " + date + " ?", async (ok) => {
+    if (!ok) return;
+    await fetch("/api/admin/deletehistoryentry", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email, house: parseInt(house), date: date })
+    });
+    location.reload();
+  });
+}
+
+
+  // Házak kezelése
+  function addHouse(email) {
+    openModal("Melyik házszámot adod hozzá?", async (house) => {
+      if (!house) return;
+      await fetch("/api/admin/addhouse", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ email, house: parseInt(house) })
+      });
+      location.reload();
+    });
+  }
+
+  function removeHouse(email) {
+    openModal("Melyik házszámot törlöd?", async (house) => {
+      if (!house) return;
+      await fetch("/api/admin/removehouse", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ email, house: parseInt(house) })
+      });
+      location.reload();
+    });
+  }
+
+  function setPayment(email) {
+    openModal("Melyik házhoz állítod a fizetési dátumot?", (house) => {
+      if (!house) return;
+      openModal("Mikor esedékes? (pl. 2025-10-20)", async (due) => {
+        if (!due) return;
+        await fetch("/api/admin/setpayment", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ email, house: parseInt(house), due_date: due })
+        });
+        location.reload();
+      });
+    });
+  }
+
+  // Felhasználó törlése
+  function deleteUser(email) {
+  openConfirm(email + " fiókját tényleg törölni akarod?", async (ok) => {
+    if (!ok) return;
+    await fetch("/api/admin/deleteuser", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email })
+    });
+    location.reload();
+  });
+}
+
+</script>
+
+</body>
+</html>
