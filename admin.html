@@ -21,10 +21,17 @@
     .btn-secondary { background:#95a5a6; color:#fff; }
     .x-btn { background:#ff9084; color:#fff; border:none; border-radius:3px; cursor:pointer; margin-left:5px; }
     .badge { background:#3498db; color:#fff; padding:2px 6px; border-radius:4px; font-size:12px; }
+    
+    .badgeS { background: #d1ecf1; color: #fff; padding: 4px 6px; border-radius: 4px; border-color: #2c3e50; font-size: 12px;}
+    
     .flash { padding:10px; margin:10px 0; border-radius:4px; }
     .flash.success { background:#d4edda; color:#155724; }
     .flash.error { background:#f8d7da; color:#721c24; }
     .flash.info { background:#d1ecf1; color:#0c5460; }
+    .status-rendben { color: green; font-weight: bold; }
+.status-elmaradt { color: red; font-weight: bold; }
+.status-felfüggesztett { color: rgb(255, 0, 0); font-weight: bolder; }
+
   </style>
 </head>
 <body>
@@ -71,9 +78,32 @@
           {% set house_key = h|string %}
           <div class="house-group">
             <div class="house-header" onclick="toggleHouse(this)">
-              <div>Ház {{ h }}</div>
-              <div class="chevron">▶</div>
-            </div>
+  <div>
+    Ház {{ h }}
+    {% set period = (user.rental_periods or {}).get(house_key, {}) %}
+    {% set due = (user.payments or {}).get(house_key) %}
+    {% set history = (user.paid_history or {}).get(house_key, []) %}
+
+    {% set status = "Rendben" %}
+    {% if period.get("suspended") %}
+      {% set status = "Felfüggesztett" %}
+    {% elif due %}
+      {% set paid_entry = None %}
+      {% for entry in history %}
+        {% if entry.date == due and entry.paid %}
+          {% set paid_entry = entry %}
+        {% endif %}
+      {% endfor %}
+      {% if not paid_entry and due < now().strftime("%Y-%m-%d") %}
+        {% set status = "Elmaradt" %}
+      {% endif %}
+    {% endif %}
+
+    <span class="badgeS status-{{ status|lower }}">{{ status }}</span>
+  </div>
+  <div class="chevron">▶</div>
+</div>
+
             <div class="house-content">
               <div class="section">
                 <button onclick="setSuspended('{{ user.email }}','{{ h }}', true)">Felfüggesztés</button>
@@ -277,7 +307,7 @@ function closeConfirm(result) {
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ email, house: parseInt(house), date: date })
     });
-    location.reload();
+    
   });
 }
 
